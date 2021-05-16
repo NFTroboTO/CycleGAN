@@ -34,6 +34,10 @@ from util.visualizer import save_images
 from util import html
 import cv2
 from tqdm import tqdm
+import requests
+import urllib.request
+import numpy as np
+import yaml
 
 
 if __name__ == '__main__':
@@ -75,7 +79,8 @@ if __name__ == '__main__':
     bar.close()
     webpage.save()  # save the HTML
 
-    results_folder = './results/style_vangogh_pretrained/test_latest/images'
+    results_folder = f'./results/{opt.name}/test_latest/images'
+    # results_folder = f'./results/style_ukiyoe_pretrained/test_latest/images'
     original_folder = './datasets/vangogh2photo/testB'
     hires_folder = './results/hires'
     lr_imgs = [i for i in sorted(os.listdir(results_folder)) if i.endswith('_fake.png')]
@@ -84,21 +89,44 @@ if __name__ == '__main__':
         os.mkdir(hires_folder)
 
     bar = tqdm(total=len(lr_imgs), desc='low-res -> hi-res')
+    # v1
+    # for i in lr_imgs:
+    #     bar.update(1)
+    #     img_name = i[:-9]
+    #     original_img_path = [i for i in original_imgs if os.path.splitext(i)[0] == img_name]
+    #     if len(original_img_path) == 0:
+    #         print(f'Cannot find image {img_name} from the original folder...')
+    #         continue
+    #     img_ori = cv2.imread(os.path.join(original_folder, original_img_path[0]))
+    #     o_h, o_w, _ = img_ori.shape
+    #
+    #     img_cur = cv2.imread(os.path.join(results_folder, i))
+    #     # img_cur = cv2.resize(img_cur, (o_w, o_h), cv2.INTER_AREA)
+    #     # img_cur = cv2.resize(img_cur, (o_w, o_h), cv2.INTER_CUBIC)
+    #     img_cur = cv2.resize(img_cur, (o_w*2, o_h*2), cv2.INTER_LINEAR)
+    #     cv2.imwrite(os.path.join(hires_folder, img_name + '.png'), img_cur)
+
+    #v2
+    secret = yaml.safe_load(open('secrets/api_key.yaml', 'r'))
     for i in lr_imgs:
         bar.update(1)
         img_name = i[:-9]
-        original_img_path = [i for i in original_imgs if os.path.splitext(i)[0] == img_name]
-        if len(original_img_path) == 0:
-            print(f'Cannot find image {img_name} from the original folder...')
-            continue
-        img_ori = cv2.imread(os.path.join(original_folder, original_img_path[0]))
-        o_h, o_w, _ = img_ori.shape
+        try:
+            r = requests.post(
+                "https://api.deepai.org/api/torch-srgan",
+                files={
+                    'image': open(os.path.join(results_folder, i), 'rb'),
+                },
+                headers={'api-key': secret['token']}
+            )
 
-        img_cur = cv2.imread(os.path.join(results_folder, i))
-        # img_cur = cv2.resize(img_cur, (o_w, o_h), cv2.INTER_AREA)
-        # img_cur = cv2.resize(img_cur, (o_w, o_h), cv2.INTER_CUBIC)
-        img_cur = cv2.resize(img_cur, (o_w, o_h), cv2.INTER_LINEAR)
-        cv2.imwrite(os.path.join(hires_folder, img_name + '.png'), img_cur)
+            with urllib.request.urlopen(r.json()['output_url']) as url:
+                arr = np.asarray(bytearray(url.read()), dtype=np.uint8)
+
+            hires_img = cv2.imdecode(arr, -1)
+            cv2.imwrite(os.path.join(hires_folder, img_name + '.png'), hires_img)
+        except Exception as e:
+            print('Failed', e)
+
     bar.close()
-
 
