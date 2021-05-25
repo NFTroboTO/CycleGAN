@@ -30,6 +30,8 @@ mkdir datasets/vangogh2photo && mkdir datasets/vangogh2photo/testB
 - Then copy your images to `datasets/vangogh2photo/testB` and generate the results, which will be saved at `./results/hires`
 ```bash
 python test.py --dataroot datasets/vangogh2photo/testB --name style_ukiyoe_pretrained --model test --no_dropout --preprocess none --display_winsize 640
+python test.py --dataroot datasets/vangogh2photo/testB --name style_vangogh_pretrained --model test --no_dropout --preprocess none --display_winsize 640
+
 ```
 
 ## Acknowledgments
